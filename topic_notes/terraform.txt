@@ -1,0 +1,73 @@
+C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit> terraform     
+Usage: terraform [global options] <subcommand> [args]
+
+The available commands for execution are listed below.
+The primary workflow commands are given first, followed by
+less common or more advanced commands.
+
+Main commands:
+  init          Prepare your working directory for other commands
+  validate      Check whether the configuration is valid
+  plan          Show changes required by the current configuration
+  apply         Create or update infrastructure
+  destroy       Destroy previously-created infrastructure
+
+All other commands:
+  console       Try Terraform expressions at an interactive command prompt
+  fmt           Reformat your configuration in the standard style
+  force-unlock  Release a stuck lock on the current workspace
+  get           Install or upgrade remote Terraform modules
+  graph         Generate a Graphviz graph of the steps in an operation
+  import        Associate existing infrastructure with a Terraform resource
+  login         Obtain and save credentials for a remote host
+  logout        Remove locally-stored credentials for a remote host
+  metadata      Metadata related commands
+  output        Show output values from your root module
+  providers     Show the providers required for this configuration
+  refresh       Update the state to match remote systems
+  show          Show the current state or a saved plan
+  state         Advanced state management
+  taint         Mark a resource instance as not fully functional
+  test          Execute integration tests for Terraform modules
+  untaint       Remove the 'tainted' state from a resource instance
+  version       Show the current Terraform version
+  workspace     Workspace management
+
+Global options (use these before the subcommand, if any):
+  -chdir=DIR    Switch to a different working directory before executing the
+                given subcommand.
+  -help         Show this help output, or the help for a specified subcommand.
+  -version      An alias for the "version" subcommand.
+PS C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit> terraform validate
+Success! The configuration is valid.
+
+PS C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit> terraform fmt     
+main.tf
+PS C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit> terraform apply
+
+Option 1:
+Terraform Importer: imports manually created resources into the terraform statefile not into config 
+
+terraform import azurerm_virtual_network.vnet '/subscriptions/085e0457-c5a2-4c4f-89db-0f8d8b4ede3c/resourceGroups/myrg/providers/Microsoft.Network/virtualNetworks/myvnet'
+
+option 2:
+aztfy command: To create terraform config file from manual creation of the resorces use the below command then enter 'w' so it will copy all the files into the current directoty
+
+PS C:\Users\Beluvigi.Shreegagana\Downloads> aztfy resource-group myrg
+
+option 3:
+write this in the mian.tf then generate this
+
+import {
+  id = "/subscriptions/085e0457-c5a2-4c4f-89db-0f8d8b4ede3c/resourceGroups/myrg/providers/Microsoft.Network/virtualNetworks/myvnet"
+  to = azurerm_virtual_network.vnet
+}
+
+Then run the terraform plan
+
+
+terraform init   
+
+Generate the terraform plan (tfplan) then check the changes and then use this tfplan to apply command
+
+tarraform apply tfplan
