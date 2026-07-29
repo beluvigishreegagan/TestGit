@@ -1,0 +1,414 @@
+SQL COMPLETE NOTES
+
+1) WHAT IS SQL
+SQL (Structured Query Language) is used to store, retrieve, update, and manage data in relational databases.
+Popular databases: MySQL, PostgreSQL, SQL Server, Oracle, SQLite.
+
+2) SQL CATEGORIES
+- DDL (Data Definition Language): CREATE, ALTER, DROP, TRUNCATE, RENAME
+- DML (Data Manipulation Language): INSERT, UPDATE, DELETE
+- DQL (Data Query Language): SELECT
+- DCL (Data Control Language): GRANT, REVOKE
+- TCL (Transaction Control Language): COMMIT, ROLLBACK, SAVEPOINT
+
+3) DATABASE OBJECTS
+- Database: top-level container
+- Table: stores rows and columns
+- View: virtual table based on a query
+- Index: improves read performance
+- Stored Procedure: reusable SQL logic
+- Function: returns a value
+- Trigger: auto-runs on table events
+
+4) BASIC DATA TYPES (COMMON)
+- INT, BIGINT
+- DECIMAL(p,s), NUMERIC(p,s)
+- CHAR(n), VARCHAR(n), TEXT
+- DATE, TIME, DATETIME, TIMESTAMP
+- BOOLEAN / BIT
+
+5) CREATE DATABASE AND TABLE
+Example:
+CREATE DATABASE SchoolDB;
+
+CREATE TABLE Students (
+	student_id INT PRIMARY KEY,
+	first_name VARCHAR(50) NOT NULL,
+	last_name VARCHAR(50),
+	email VARCHAR(100) UNIQUE,
+	dob DATE,
+	marks DECIMAL(5,2) CHECK (marks >= 0),
+	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+6) CONSTRAINTS
+- PRIMARY KEY: unique + not null
+- FOREIGN KEY: link between tables
+- UNIQUE: prevents duplicate values
+- NOT NULL: must contain a value
+- CHECK: condition validation
+- DEFAULT: default value
+
+Foreign key example:
+CREATE TABLE Enrollments (
+	enrollment_id INT PRIMARY KEY,
+	student_id INT,
+	course_id INT,
+	FOREIGN KEY (student_id) REFERENCES Students(student_id)
+);
+
+7) INSERT DATA
+INSERT INTO Students (student_id, first_name, last_name, email, dob, marks)
+VALUES
+(1, 'Asha', 'K', 'asha@mail.com', '2005-02-10', 91.5),
+(2, 'Ravi', 'P', 'ravi@mail.com', '2004-11-21', 78.0);
+
+8) SELECT QUERY BASICS
+Select all columns:
+SELECT * FROM Students;
+
+Select specific columns:
+SELECT first_name, marks FROM Students;
+
+Alias:
+SELECT first_name AS Name, marks AS Score FROM Students;
+
+9) FILTERING DATA (WHERE)
+SELECT * FROM Students WHERE marks > 80;
+SELECT * FROM Students WHERE first_name = 'Asha';
+SELECT * FROM Students WHERE marks BETWEEN 70 AND 90;
+SELECT * FROM Students WHERE first_name IN ('Asha', 'Ravi');
+SELECT * FROM Students WHERE email IS NOT NULL;
+
+10) SORTING (ORDER BY)
+SELECT * FROM Students ORDER BY marks DESC;
+SELECT * FROM Students ORDER BY last_name ASC, first_name ASC;
+
+11) LIMITING RESULTS
+MySQL/PostgreSQL:
+SELECT * FROM Students LIMIT 5;
+
+SQL Server:
+SELECT TOP 5 * FROM Students;
+
+12) DISTINCT
+SELECT DISTINCT last_name FROM Students;
+
+13) UPDATE DATA
+UPDATE Students
+SET marks = 82.5
+WHERE student_id = 2;
+
+14) DELETE DATA
+DELETE FROM Students
+WHERE student_id = 2;
+
+15) TRUNCATE VS DELETE VS DROP
+- DELETE: removes selected rows, can use WHERE
+- TRUNCATE: removes all rows quickly, no WHERE
+- DROP: removes object completely (table definition + data)
+
+16) AGGREGATE FUNCTIONS
+- COUNT(), SUM(), AVG(), MIN(), MAX()
+
+Examples:
+SELECT COUNT(*) AS total_students FROM Students;
+SELECT AVG(marks) AS avg_marks FROM Students;
+SELECT MAX(marks) AS highest_marks FROM Students;
+
+17) GROUP BY AND HAVING
+GROUP BY groups rows for aggregation.
+HAVING filters grouped results.
+
+Example:
+SELECT last_name, COUNT(*) AS total
+FROM Students
+GROUP BY last_name
+HAVING COUNT(*) >= 1;
+
+18) JOINS
+A) INNER JOIN: matching rows only
+SELECT s.student_id, s.first_name, c.course_name
+FROM Students s
+INNER JOIN Enrollments e ON s.student_id = e.student_id
+INNER JOIN Courses c ON e.course_id = c.course_id;
+
+B) LEFT JOIN: all rows from left + matches from right
+SELECT s.student_id, s.first_name, e.course_id
+FROM Students s
+LEFT JOIN Enrollments e ON s.student_id = e.student_id;
+
+C) RIGHT JOIN: all rows from right + matches from left
+SELECT s.student_id, s.first_name, e.course_id
+FROM Students s
+RIGHT JOIN Enrollments e ON s.student_id = e.student_id;
+
+D) FULL OUTER JOIN: all rows from both sides
+SELECT s.student_id, e.course_id
+FROM Students s
+FULL OUTER JOIN Enrollments e ON s.student_id = e.student_id;
+
+E) SELF JOIN: table joins itself
+SELECT a.first_name AS student1, b.first_name AS student2
+FROM Students a
+JOIN Students b ON a.last_name = b.last_name
+WHERE a.student_id <> b.student_id;
+
+19) SUBQUERIES
+Find students above average marks:
+SELECT first_name, marks
+FROM Students
+WHERE marks > (SELECT AVG(marks) FROM Students);
+
+20) EXISTS
+SELECT s.student_id, s.first_name
+FROM Students s
+WHERE EXISTS (
+	SELECT 1
+	FROM Enrollments e
+	WHERE e.student_id = s.student_id
+);
+
+21) SET OPERATORS
+- UNION: combines result sets, removes duplicates
+- UNION ALL: keeps duplicates
+- INTERSECT: common rows
+- EXCEPT/MINUS: rows in first query not in second
+
+Example:
+SELECT first_name FROM Students
+UNION
+SELECT first_name FROM Alumni;
+
+22) CASE EXPRESSION
+SELECT first_name,
+	   marks,
+	   CASE
+		   WHEN marks >= 90 THEN 'A'
+		   WHEN marks >= 75 THEN 'B'
+		   ELSE 'C'
+	   END AS grade
+FROM Students;
+
+23) STRING FUNCTIONS (COMMON)
+- UPPER(), LOWER(), LENGTH()/LEN(), SUBSTRING(), TRIM(), CONCAT()
+
+Example:
+SELECT UPPER(first_name) AS upper_name,
+	   CONCAT(first_name, ' ', last_name) AS full_name
+FROM Students;
+
+24) DATE FUNCTIONS (COMMON)
+- CURRENT_DATE, CURRENT_TIMESTAMP, NOW()
+- DATEADD (SQL Server), INTERVAL (MySQL/PostgreSQL)
+- DATEDIFF (SQL Server/MySQL variant)
+
+Example:
+SELECT first_name, dob
+FROM Students
+WHERE dob >= '2005-01-01';
+
+25) NULL HANDLING
+- IS NULL / IS NOT NULL
+- COALESCE(value, fallback)
+
+Example:
+SELECT first_name, COALESCE(email, 'No Email') AS email_value
+FROM Students;
+
+26) VIEWS
+Create a view:
+CREATE VIEW TopStudents AS
+SELECT student_id, first_name, marks
+FROM Students
+WHERE marks >= 85;
+
+Use a view:
+SELECT * FROM TopStudents;
+
+Drop a view:
+DROP VIEW TopStudents;
+
+27) INDEXES
+Create index:
+CREATE INDEX idx_students_lastname ON Students(last_name);
+
+Create unique index:
+CREATE UNIQUE INDEX idx_students_email ON Students(email);
+
+Drop index (syntax differs by DB):
+DROP INDEX idx_students_lastname;
+
+Note: indexes speed reads but can slow inserts/updates/deletes.
+
+28) STORED PROCEDURES (SQL SERVER STYLE EXAMPLE)
+CREATE PROCEDURE GetStudentById
+	@sid INT
+AS
+BEGIN
+	SELECT * FROM Students WHERE student_id = @sid;
+END;
+
+Execute:
+EXEC GetStudentById @sid = 1;
+
+29) FUNCTIONS (EXAMPLE)
+CREATE FUNCTION dbo.GetPassStatus (@marks DECIMAL(5,2))
+RETURNS VARCHAR(10)
+AS
+BEGIN
+	RETURN (CASE WHEN @marks >= 40 THEN 'PASS' ELSE 'FAIL' END);
+END;
+
+Usage:
+SELECT first_name, dbo.GetPassStatus(marks) AS status FROM Students;
+
+30) TRIGGERS (EXAMPLE)
+CREATE TRIGGER trg_after_insert_students
+ON Students
+AFTER INSERT
+AS
+BEGIN
+	PRINT 'New student inserted';
+END;
+
+31) TRANSACTIONS (ACID)
+ACID:
+- Atomicity
+- Consistency
+- Isolation
+- Durability
+
+Transaction example:
+BEGIN TRANSACTION;
+
+UPDATE Accounts SET balance = balance - 500 WHERE account_id = 1;
+UPDATE Accounts SET balance = balance + 500 WHERE account_id = 2;
+
+COMMIT;
+
+If error:
+ROLLBACK;
+
+Savepoint example:
+BEGIN TRANSACTION;
+UPDATE Students SET marks = 88 WHERE student_id = 1;
+SAVEPOINT before_second_update;
+UPDATE Students SET marks = 77 WHERE student_id = 2;
+ROLLBACK TO SAVEPOINT before_second_update;
+COMMIT;
+
+32) NORMALIZATION
+- 1NF: atomic values, no repeating groups
+- 2NF: 1NF + no partial dependency on composite key
+- 3NF: 2NF + no transitive dependency
+- BCNF: stronger form of 3NF
+
+Goal: reduce redundancy and update anomalies.
+
+33) KEYS SUMMARY
+- Primary Key: unique identifier
+- Candidate Key: possible primary keys
+- Alternate Key: candidate key not chosen as primary
+- Composite Key: key made of multiple columns
+- Foreign Key: reference to another table key
+
+34) COMMON SQL CLAUSE ORDER
+Logical order:
+FROM -> JOIN -> WHERE -> GROUP BY -> HAVING -> SELECT -> ORDER BY -> LIMIT
+
+35) PERFORMANCE BASICS
+- Select only needed columns (avoid SELECT * in production)
+- Add indexes for frequent search/join columns
+- Avoid functions on indexed columns in WHERE
+- Use EXPLAIN/EXPLAIN ANALYZE to inspect execution plans
+- Batch inserts when possible
+
+36) SECURITY BASICS
+- Use parameterized queries (prevent SQL injection)
+- Grant least privileges
+- Avoid using admin account for applications
+- Mask/encrypt sensitive data
+
+37) SQL INJECTION EXAMPLE (UNSAFE VS SAFE)
+Unsafe (string concatenation):
+SELECT * FROM Users WHERE username = '" + input + "';
+
+Safe (parameterized):
+SELECT * FROM Users WHERE username = ?;
+
+38) PRACTICE TABLE SETUP
+CREATE TABLE Courses (
+	course_id INT PRIMARY KEY,
+	course_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE Enrollments (
+	enrollment_id INT PRIMARY KEY,
+	student_id INT NOT NULL,
+	course_id INT NOT NULL,
+	enrolled_on DATE DEFAULT CURRENT_DATE,
+	FOREIGN KEY (student_id) REFERENCES Students(student_id),
+	FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+);
+
+Sample data:
+INSERT INTO Courses (course_id, course_name)
+VALUES (101, 'Math'), (102, 'Science');
+
+INSERT INTO Enrollments (enrollment_id, student_id, course_id)
+VALUES (1, 1, 101);
+
+39) FREQUENT INTERVIEW QUERIES
+A) Second highest marks:
+SELECT MAX(marks) AS second_highest
+FROM Students
+WHERE marks < (SELECT MAX(marks) FROM Students);
+
+B) Duplicate emails:
+SELECT email, COUNT(*) AS cnt
+FROM Students
+GROUP BY email
+HAVING COUNT(*) > 1;
+
+C) Students with no enrollments:
+SELECT s.student_id, s.first_name
+FROM Students s
+LEFT JOIN Enrollments e ON s.student_id = e.student_id
+WHERE e.student_id IS NULL;
+
+40) SQL VS NOSQL (QUICK)
+- SQL: structured schema, relational, strong consistency, joins
+- NoSQL: flexible schema, horizontal scale patterns, denormalized models
+
+41) SQL LEARNING CHECKLIST
+- Basic SELECT/WHERE/ORDER BY
+- DDL and constraints
+- Joins and subqueries
+- Grouping and aggregates
+- Transactions and isolation
+- Indexing and query optimization
+- Views, procedures, triggers
+- Security and SQL injection prevention
+
+42) QUICK REVISION SNIPPETS
+Find all records:
+SELECT * FROM table_name;
+
+Filter records:
+SELECT * FROM table_name WHERE condition;
+
+Join tables:
+SELECT *
+FROM t1
+JOIN t2 ON t1.id = t2.id;
+
+Group and aggregate:
+SELECT col, COUNT(*)
+FROM t
+GROUP BY col;
+
+Order and limit:
+SELECT * FROM t ORDER BY col DESC LIMIT 10;
+
+END OF SQL NOTES
