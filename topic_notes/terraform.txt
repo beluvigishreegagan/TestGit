@@ -1,73 +1,161 @@
-C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit> terraform     
-Usage: terraform [global options] <subcommand> [args]
+Terraform Notes
+===============
 
-The available commands for execution are listed below.
-The primary workflow commands are given first, followed by
-less common or more advanced commands.
+important and major commands:
 
-Main commands:
-  init          Prepare your working directory for other commands
-  validate      Check whether the configuration is valid
-  plan          Show changes required by the current configuration
-  apply         Create or update infrastructure
-  destroy       Destroy previously-created infrastructure
+terraform apply -var-file="../terraform.tfvars"
+terraform init -backend-config=backend.hcl
+terraform destroy -var-file="../terraform.tfvars" -target module.processor_pimcg_app.azurerm_app_service.this
+terraform state list -- this will list the resources or module we can use it for destroying sepcific resources 
 
-All other commands:
-  console       Try Terraform expressions at an interactive command prompt
-  fmt           Reformat your configuration in the standard style
-  force-unlock  Release a stuck lock on the current workspace
-  get           Install or upgrade remote Terraform modules
-  graph         Generate a Graphviz graph of the steps in an operation
-  import        Associate existing infrastructure with a Terraform resource
-  login         Obtain and save credentials for a remote host
-  logout        Remove locally-stored credentials for a remote host
-  metadata      Metadata related commands
-  output        Show output values from your root module
-  providers     Show the providers required for this configuration
-  refresh       Update the state to match remote systems
-  show          Show the current state or a saved plan
-  state         Advanced state management
-  taint         Mark a resource instance as not fully functional
-  test          Execute integration tests for Terraform modules
-  untaint       Remove the 'tainted' state from a resource instance
-  version       Show the current Terraform version
-  workspace     Workspace management
+backend file is details for state file details : 
+storage_account_name = "stpdhtfstatetest"
+container_name       = "stc-pdh-tfstate-test"
+resource_group_name  = "s-weu-dev-pim"
+key                  = "dcpdhinfratest.tfstate"
 
-Global options (use these before the subcommand, if any):
-  -chdir=DIR    Switch to a different working directory before executing the
-                given subcommand.
-  -help         Show this help output, or the help for a specified subcommand.
-  -version      An alias for the "version" subcommand.
-PS C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit> terraform validate
-Success! The configuration is valid.
+terraform plan -var-file="../terraform.tfvars"
 
-PS C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit> terraform fmt     
-main.tf
-PS C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit> terraform apply
+Workspace
+- Repo path: C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit
+- Notes file: C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit\topic_notes\terraform.txt
 
-Option 1:
-Terraform Importer: imports manually created resources into the terraform statefile not into config 
+Terraform course reference
+- Local course folder: C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit\terraform-course-main
+- Course README: C:\Users\Beluvigi.Shreegagana\Desktop\Git\TestGit\terraform-course-main\README.md
+- The local folder contains Terraform course examples, sample code, and supporting files.
 
+Current repo structure and purpose
+- provider.tf configures the AzureRM provider and backend block.
+- main.tf is the root module that calls the child module in Terraform/modules/rg.
+- variables.tf defines the input variables for the root module.
+- terraform.tfvars provides environment values such as the Azure region.
+- Terraform/modules/rg/main.tf creates the Azure resource group.
+- Terraform/modules/rg/variables.tf defines the child module inputs.
+- terraform.tfstate stores Terraform state for the current workspace.
+
+Current Terraform design in this repo
+- The root module selects one resource group name based on the active Terraform workspace.
+- main.tf uses `var.resource_group_names[terraform.workspace]`.
+- variables.tf currently defines resource_group_names as a map(string):
+  test = "test-myrg"
+  dev  = "dev-myrg"
+- terraform.tfvars currently sets `resource_group_location = "eastus"`.
+- Result: the current design creates one resource group per workspace, not both at the same time.
+
+Example of current behavior
+- If the active workspace is `test`, Terraform targets `test-myrg`.
+- If the active workspace is `dev`, Terraform targets `dev-myrg`.
+- To create both `test-myrg` and `dev-myrg` in a single apply, the design must be changed to `list(string)` plus `for_each`.
+
+Terraform concepts covered during this work
+- Provider: AzureRM provider for Azure resources.
+- Backend: remote or local state configuration through the backend block.
+- State: terraform.tfstate tracks managed infrastructure.
+- Root module: entry point for Terraform execution.
+- Child module: reusable module under Terraform/modules/rg.
+- Variables: definitions in variables.tf and values in terraform.tfvars.
+- Workspaces: using terraform.workspace to switch environment-specific values.
+- Import: bringing manually created Azure resources into Terraform state.
+- Generated config: using terraform plan -generate-config-out to generate Terraform code.
+- Drift detection: terraform plan compares configuration with real Azure resources.
+- Validation and formatting: terraform validate and terraform fmt.
+
+Commands we worked with
+- terraform
+- terraform init
+- terraform validate
+- terraform fmt
+- terraform plan
+- terraform apply
+- terraform apply -auto-approve
+- terraform destroy
+- terraform import azurerm_virtual_network.vnet '/subscriptions/085e0457-c5a2-4c4f-89db-0f8d8b4ede3c/resourceGroups/myrg/providers/Microsoft.Network/virtualNetworks/myvnet'
+- terraform plan -generate-config-out="vnet.tf"
+- terraform workspace list
+- terraform workspace select dev
+- terraform workspace select test
+- aztfy --version
+- aztfy resource-group myrg
+
+Terraform command summary
+- terraform init: initialize the working directory and download providers and modules.
+- terraform validate: check whether the configuration is valid.
+- terraform fmt: format Terraform files.
+- terraform plan: preview changes.
+- terraform apply: apply changes.
+- terraform destroy: destroy managed resources.
+- terraform import: attach an existing resource to state.
+- terraform show: inspect state or a plan file.
+- terraform output: display output values.
+- terraform state list: list resources in state.
+- terraform workspace list: show all workspaces.
+- terraform workspace select <name>: switch workspace.
+
+Import workflows discussed
+Option 1: terraform import
+- Imports an existing Azure resource into Terraform state.
+- It does not fully generate Terraform configuration by itself.
+
+Example:
 terraform import azurerm_virtual_network.vnet '/subscriptions/085e0457-c5a2-4c4f-89db-0f8d8b4ede3c/resourceGroups/myrg/providers/Microsoft.Network/virtualNetworks/myvnet'
 
-option 2:
-aztfy command: To create terraform config file from manual creation of the resorces use the below command then enter 'w' so it will copy all the files into the current directoty
+Option 2: aztfy
+- Generates Terraform configuration for existing Azure resources.
+- Example:
+  aztfy resource-group myrg
+- In the interactive workflow, entering `w` writes the generated files into the current directory.
 
-PS C:\Users\Beluvigi.Shreegagana\Downloads> aztfy resource-group myrg
-
-option 3:
-write this in the mian.tf then generate this
+Option 3: import block plus generated config
+- Add an import block to main.tf:
 
 import {
   id = "/subscriptions/085e0457-c5a2-4c4f-89db-0f8d8b4ede3c/resourceGroups/myrg/providers/Microsoft.Network/virtualNetworks/myvnet"
   to = azurerm_virtual_network.vnet
 }
 
-Then run the terraform plan
+- Then run:
+  terraform init
+  terraform plan -generate-config-out="vnet.tf"
 
+Issues we fixed earlier
+- Installed aztfy and verified that the executable worked.
+- Fixed generated vnet.tf content so Terraform could parse the subnet structure correctly.
+- Removed or adjusted generated values that Terraform considered computed or invalid in config.
+- Preserved the existing resource group tag to avoid unintended changes during apply.
+- Imported the existing Azure virtual network into Terraform state successfully.
+- Fixed a type mismatch between the root module and the child module for the resource group name input.
+- Explained why only one resource group was created: the current code is workspace-based and selects one map entry.
 
-terraform init   
+Current code notes
+- main.tf contains comments for the root module and VNet import workflow.
+- variables.tf documents that the current design maps one workspace to one resource group name.
+- Terraform/modules/rg/main.tf contains the child module resource group definition.
+- Terraform/modules/rg/variables.tf defines a string input for the resource group name and a string input for the location.
 
-Generate the terraform plan (tfplan) then check the changes and then use this tfplan to apply command
+Recommended Terraform workflow for this repo
+1. terraform init
+2. terraform validate
+3. terraform fmt
+4. terraform plan
+5. Optional: save the plan
+   terraform plan -out tfplan
+6. Review the plan output.
+7. Apply the saved plan
+   terraform apply tfplan
 
-tarraform apply tfplan
+Common mistakes to avoid
+- Running terraform plan -generate-config-out against a file that already exists.
+- Expecting terraform import to generate full configuration automatically.
+- Mixing list(string) and string types across root and child module inputs.
+- Expecting a workspace-based map lookup to create multiple resource groups in one run.
+- Typing tarraform or teraform instead of terraform.
+
+Git and documentation work completed
+- Added comments to the Terraform files.
+- Updated this Terraform notes file with the latest repo behavior and workflows.
+- Documentation updates were committed and pushed to GitHub earlier.
+
+If the goal changes later
+- For one resource group per environment, keep the current workspace-based map design.
+- For multiple resource groups in one apply, refactor the root module to iterate with for_each over a list of names.
