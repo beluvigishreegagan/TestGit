@@ -184,7 +184,6 @@ jobs:
           terraform init \
           -reconfigure \
           -input=false \
-          -backend-config=use_azuread_auth=true \
           -backend-config=backend.hcl
       - name: terraform_validate
         run: |
@@ -202,7 +201,6 @@ jobs:
           terraform init \
           -reconfigure \
           -input=false \
-          -backend-config=use_azuread_auth=true \
           -backend-config=backend.hcl
       - name: terraform_plan
         run: |
@@ -232,7 +230,6 @@ jobs:
           terraform init \
           -reconfigure \
           -input=false \
-          -backend-config=use_azuread_auth=true \
           -backend-config=backend.hcl
           
       - name: terraform_apply
