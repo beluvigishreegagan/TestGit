@@ -131,10 +131,10 @@ env:
   ARM_USE_CLI: false
   ARM_USE_AZUREAD: true
   SECRET_DETECTION_ENABLED: true
-  ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
-  ARM_CLIENT_SECRET: ${{ vars.ARM_CLIENT_SECRET }}
-  ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
-  ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+  ARM_CLIENT_ID: ${{ secrets.ARM_CLIENT_ID || vars.ARM_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.ARM_CLIENT_SECRET || vars.ARM_CLIENT_SECRET }}
+  ARM_TENANT_ID: ${{ secrets.ARM_TENANT_ID || vars.ARM_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.ARM_SUBSCRIPTION_ID || vars.ARM_SUBSCRIPTION_ID }}
   
   
 jobs:
@@ -170,6 +170,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v2.0.3
+      - name: Validate ARM credentials
+        run: |
+          test -n "$ARM_CLIENT_ID" || { echo "Missing ARM_CLIENT_ID"; exit 1; }
+          test -n "$ARM_CLIENT_SECRET" || { echo "Missing ARM_CLIENT_SECRET"; exit 1; }
+          test -n "$ARM_TENANT_ID" || { echo "Missing ARM_TENANT_ID"; exit 1; }
+          test -n "$ARM_SUBSCRIPTION_ID" || { echo "Missing ARM_SUBSCRIPTION_ID"; exit 1; }
       - name: Terraform Version
         run: terraform version
 
@@ -178,6 +184,7 @@ jobs:
           terraform init \
           -reconfigure \
           -input=false \
+          -backend-config=use_azuread_auth=true \
           -backend-config=backend.hcl
       - name: terraform_validate
         run: |
@@ -195,6 +202,7 @@ jobs:
           terraform init \
           -reconfigure \
           -input=false \
+          -backend-config=use_azuread_auth=true \
           -backend-config=backend.hcl
       - name: terraform_plan
         run: |
@@ -224,6 +232,7 @@ jobs:
           terraform init \
           -reconfigure \
           -input=false \
+          -backend-config=use_azuread_auth=true \
           -backend-config=backend.hcl
           
       - name: terraform_apply
