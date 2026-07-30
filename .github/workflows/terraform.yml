@@ -42,77 +42,190 @@
 #       with:
 #         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
 
-name: 'Terraform'
+# name: 'Terraform'
+
+# on:
+#   push:
+#     branches: [ "main" ]
+#   pull_request:
+
+# permissions:
+#   contents: read
+#   id-token: write
+
+# jobs:
+#   terraform:
+#     name: 'Terraform'
+#     runs-on: ubuntu-latest
+#     environment: production
+#     env:
+#       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID || secrets.ARM_CLIENT_ID }}
+#       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID || secrets.ARM_TENANT_ID }}
+#       AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || secrets.ARM_SUBSCRIPTION_ID }}
+
+#     # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+#     defaults:
+#       run:
+#         shell: bash
+
+#     steps:
+#     # Checkout the repository to the GitHub Actions runner
+#     - name: Checkout
+#       uses: actions/checkout@v4
+
+#     # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
+#     - name: Setup Terraform
+#       uses: hashicorp/setup-terraform@v1
+#       with:
+#         cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+
+#     - name: Validate Azure auth inputs
+#       run: |
+#         test -n "$AZURE_CLIENT_ID" || { echo "Missing Azure client ID secret (AZURE_CLIENT_ID or ARM_CLIENT_ID)."; exit 1; }
+#         test -n "$AZURE_TENANT_ID" || { echo "Missing Azure tenant ID secret (AZURE_TENANT_ID or ARM_TENANT_ID)."; exit 1; }
+#         test -n "$AZURE_SUBSCRIPTION_ID" || { echo "Missing Azure subscription ID secret (AZURE_SUBSCRIPTION_ID or ARM_SUBSCRIPTION_ID)."; exit 1; }
+
+#     - name: Azure Login
+#       uses: azure/login@v2
+#       with:
+#         client-id: ${{ env.AZURE_CLIENT_ID }}
+#         tenant-id: ${{ env.AZURE_TENANT_ID }}
+#         subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+#     - name: Export ARM auth env vars
+#       run: |
+#         echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
+#         echo "ARM_CLIENT_ID=${AZURE_CLIENT_ID}" >> $GITHUB_ENV
+#         echo "ARM_TENANT_ID=${AZURE_TENANT_ID}" >> $GITHUB_ENV
+#         echo "ARM_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" >> $GITHUB_ENV
+
+#     # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
+#     - name: Terraform Init
+#       run: terraform init -backend-config=./backend.hcl -input=false
+
+#     # Checks that all Terraform configuration files adhere to a canonical format
+#     - name: Terraform Format
+#       run: terraform fmt -check
+
+#     # Generates an execution plan for Terraform
+#     - name: Terraform Plan
+#       run: terraform plan -input=false
+
+#       # On push to "main", build or change infrastructure according to Terraform configuration files
+#       # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
+#     - name: Terraform Apply
+#       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+#       run: terraform apply -auto-approve -input=false
+
+name: CI
 
 on:
   push:
-    branches: [ "main" ]
   pull_request:
 
-permissions:
-  contents: read
-  id-token: write
-
+env:
+  TF_IN_AUTOMATION: true
+  TF_INPUT: false
+  TF_CLI_ARGS: -no-color
+  TF_PLAN_FILE: tfplan
+  ARM_USE_CLI: false
+  ARM_USE_AZUREAD: true
+  SECRET_DETECTION_ENABLED: true
+  ARM_CLIENT_ID: ${{ vars.ARM_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ vars.ARM_CLIENT_SECRET }}
+  ARM_TENANT_ID: ${{ vars.ARM_TENANT_ID }}
+  ARM_SUBSCRIPTION_ID: ${{ vars.ARM_SUBSCRIPTION_ID }}
+  
+  
 jobs:
-  terraform:
-    name: 'Terraform'
+  sast:
     runs-on: ubuntu-latest
-    environment: production
-    env:
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID || secrets.ARM_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID || secrets.ARM_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID || secrets.ARM_SUBSCRIPTION_ID }}
-
-    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
-    defaults:
-      run:
-        shell: bash
-
     steps:
-    # Checkout the repository to the GitHub Actions runner
-    - name: Checkout
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+      - name: sast
+        run: |
+          echo 'Add build commands for sast'
+  terraform_iac_scanning:
+    runs-on: ubuntu-latest
+    needs: [sast]
+    continue-on-error: true
+    container: "python:3.11"
+    steps:
+      - uses: actions/checkout@v4
+      - name: terraform_iac_scanning
+        run: |
+          pip install -q checkov
+          mkdir -p gl-sast-report
+          echo "=== Checkov IaC Security Scan ==="
+          checkov -d . --framework terraform -o gitlab_sast > gl-sast-report/gl-sast-report.json || true
+          checkov -d . --framework terraform -o cli > gl-sast-report/checkov.txt || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terraform_iac_scanning-artifacts
+          path: |
+            gl-sast-report/
+  terraform_validate:
+    runs-on: ubuntu-latest
+    needs: [sast, terraform_iac_scanning]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v2.0.3
+      - name: Terraform Version
+        run: terraform version
 
-    # Install the latest version of Terraform CLI and configure the Terraform CLI configuration file with a Terraform Cloud user API token
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v1
-      with:
-        cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+      - name: Terraform Init
+        run: |
+          terraform init \
+          -reconfigure \
+          -input=false \
+          -backend-config=backend.hcl
+      - name: terraform_validate
+        run: |
+          terraform fmt -check -recursive
+          terraform validate
+        
+  terraform_plan:
+    runs-on: ubuntu-latest
+    needs: [sast, terraform_iac_scanning, terraform_validate]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Terraform Init
+        run: |
+          terraform init \
+          -reconfigure \
+          -input=false \
+          -backend-config=backend.hcl
+      - name: terraform_plan
+        run: |
+          terraform plan -out=$TF_PLAN_FILE
+          terraform show $TF_PLAN_FILE > plan.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: terraform_plan-artifacts
+          path: |
+            tfplan
+            plan.txt
+  terraform_apply:
+    runs-on: ubuntu-latest
+    needs: 
+     - terraform_plan
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      - name: Download Plan
+        uses: actions/download-artifact@v4
 
-    - name: Validate Azure auth inputs
-      run: |
-        test -n "$AZURE_CLIENT_ID" || { echo "Missing Azure client ID secret (AZURE_CLIENT_ID or ARM_CLIENT_ID)."; exit 1; }
-        test -n "$AZURE_TENANT_ID" || { echo "Missing Azure tenant ID secret (AZURE_TENANT_ID or ARM_TENANT_ID)."; exit 1; }
-        test -n "$AZURE_SUBSCRIPTION_ID" || { echo "Missing Azure subscription ID secret (AZURE_SUBSCRIPTION_ID or ARM_SUBSCRIPTION_ID)."; exit 1; }
-
-    - name: Azure Login
-      uses: azure/login@v2
-      with:
-        client-id: ${{ env.AZURE_CLIENT_ID }}
-        tenant-id: ${{ env.AZURE_TENANT_ID }}
-        subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
-
-    - name: Export ARM auth env vars
-      run: |
-        echo "ARM_USE_OIDC=true" >> $GITHUB_ENV
-        echo "ARM_CLIENT_ID=${AZURE_CLIENT_ID}" >> $GITHUB_ENV
-        echo "ARM_TENANT_ID=${AZURE_TENANT_ID}" >> $GITHUB_ENV
-        echo "ARM_SUBSCRIPTION_ID=${AZURE_SUBSCRIPTION_ID}" >> $GITHUB_ENV
-
-    # Initialize a new or existing Terraform working directory by creating initial files, loading any remote state, downloading modules, etc.
-    - name: Terraform Init
-      run: terraform init -backend-config=./backend.hcl -input=false
-
-    # Checks that all Terraform configuration files adhere to a canonical format
-    - name: Terraform Format
-      run: terraform fmt -check
-
-    # Generates an execution plan for Terraform
-    - name: Terraform Plan
-      run: terraform plan -input=false
-
-      # On push to "main", build or change infrastructure according to Terraform configuration files
-      # Note: It is recommended to set up a required "strict" status check in your repository for "Terraform Cloud". See the documentation on "strict" required status checks for more information: https://help.github.com/en/github/administering-a-repository/types-of-required-status-checks
-    - name: Terraform Apply
-      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-      run: terraform apply -auto-approve -input=false
+        with:
+          name: terraform_plan-artifacts
+      
+      - name: Terraform Init
+        run: |
+          terraform init \
+          -reconfigure \
+          -input=false \
+          -backend-config=backend.hcl
+          
+      - name: terraform_apply
+        run: |
+          terraform apply -auto-approve $TF_PLAN_FILE
