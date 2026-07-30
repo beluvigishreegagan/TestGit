@@ -1,9 +1,9 @@
 
 # Root module: choose the resource group name based on the active Terraform workspace.
 module "rg" {
-  source                  = "./Terraform/modules/rg"
+  source = "./Terraform/modules/rg"
   # ressource_group_name    = var.resource_group_names[terraform.workspace]
-  for_each = toset(var.ressource_group_name)
+  for_each                = toset(var.ressource_group_name)
   ressource_group_name    = each.value
   resource_group_location = var.resource_group_location
   # depends_on = [module.vnet] #explicitly define the dependency on the vnet module to ensure that the resource group is created after the virtual network is created.
@@ -14,7 +14,7 @@ module "rg" {
 #   display_name        = "Shreegagana Beluvigi"
 #   mail_nickname       = "shreegagan2001"
 #   password ="Shreegagna@2126"
-  
+
 # }
 
 # resource "azuread_group" "group"{
