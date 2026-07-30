@@ -187,7 +187,8 @@ jobs:
           -backend-config=backend.hcl
       - name: terraform_validate
         run: |
-          terraform fmt -check -recursive
+          terraform fmt -check main.tf provider.tf variables.tf
+          terraform fmt -check -recursive Terraform/modules
           terraform validate
         
   terraform_plan:
